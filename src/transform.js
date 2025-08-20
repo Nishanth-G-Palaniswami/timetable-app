@@ -1,5 +1,4 @@
 // src/transform.js
-// Map Dynamo rows <-> rich UI sections/items
 
 export function rowsToUI(rows = []) {
   const byCourse = new Map();
@@ -19,15 +18,15 @@ export function rowsToUI(rows = []) {
       .map((r) => ({
         id: r.sk,
         sk: r.sk,
-        title: r.title || `${r.startsAt ?? "??"}–${r.endsAt ?? "??"} (${r.room ?? ""})`,
+        // 👇 use your saved title first; fallback to time-room if not present
+        title: r.title && r.title.trim()
+          ? r.title
+          : `${r.startsAt ?? "??"}–${r.endsAt ?? "??"}${r.room ? ` (${r.room})` : ""}`,
         link: r.link || "",
         note: r.note || "",
         today: true,
         doneDates: Array.isArray(r.doneDates) ? r.doneDates : [],
-        meta: {
-          time: `${r.startsAt ?? "?"}–${r.endsAt ?? "?"}`,
-          room: r.room || "",
-        },
+        meta: { time: `${r.startsAt ?? "?"}–${r.endsAt ?? "?"}`, room: r.room || "" },
         raw: r,
       })),
   }));
@@ -35,6 +34,7 @@ export function rowsToUI(rows = []) {
   return { sections };
 }
 
+// include `title` on create
 export function uiNewToRow({ userId, date }, ui) {
   return {
     userId,
@@ -44,6 +44,7 @@ export function uiNewToRow({ userId, date }, ui) {
     room: ui.room ?? "",
     startsAt: ui.startsAt,
     endsAt: ui.endsAt,
+    title: ui.title ?? "",          // <-- NEW
     note: ui.note ?? "",
     link: ui.link ?? "",
     doneDates: [],
@@ -55,5 +56,6 @@ export function uiPatchToRowPatch(uiPatch = {}) {
   if ("note" in uiPatch) out.note = uiPatch.note ?? "";
   if ("link" in uiPatch) out.link = uiPatch.link ?? "";
   if ("doneDates" in uiPatch) out.doneDates = uiPatch.doneDates ?? [];
+  if ("title" in uiPatch) out.title = uiPatch.title ?? "";   // <-- allow title edits later
   return out;
 }

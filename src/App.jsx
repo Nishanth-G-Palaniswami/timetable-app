@@ -192,33 +192,69 @@ function ItemRow({ item, isToday, onToggleToday, onCheckDone, onDelete, onSaveNo
 
   return (
     <div className="group grid grid-cols-12 items-center gap-2 py-2 border-b last:border-none">
-      <div className="col-span-6 sm:col-span-5 flex items-center gap-2 min-w-0">
-        <Checkbox id={`today-${item.id}`} checked={isToday} onCheckedChange={(v) => onToggleToday(Boolean(v))} />
-        <label htmlFor={`today-${item.id}`} className="text-sm text-slate-800 truncate cursor-pointer">
-          {item.title}
-        </label>
+      {/* Left: title + time/room */}
+      <div className="col-span-6 sm:col-span-5 flex items-start gap-2 min-w-0">
+        <Checkbox
+          id={`today-${item.id}`}
+          checked={isToday}
+          onCheckedChange={(v) => onToggleToday(Boolean(v))}
+          className="mt-0.5"
+        />
+
+        <div className="min-w-0">
+          <label
+            htmlFor={`today-${item.id}`}
+            className="text-sm text-slate-800 truncate cursor-pointer block"
+            title={item.title}
+          >
+            {item.title}
+          </label>
+
+          {/* ⬇️ Add this small secondary line for time / room */}
+          {(item.meta?.time || item.meta?.room) && (
+            <span className="mt-0.5 block text-xs text-slate-500 truncate">
+              {item.meta?.time}
+              {item.meta?.room ? ` · ${item.meta.room}` : ""}
+            </span>
+          )}
+        </div>
+
         {item.link && (
-          <a href={item.link} target="_blank" rel="noreferrer" className="ml-1 text-sky-600 hover:underline shrink-0">
+          <a
+            href={item.link}
+            target="_blank"
+            rel="noreferrer"
+            className="ml-1 text-sky-600 hover:underline shrink-0"
+            title={item.link}
+          >
             <LinkIcon className="w-4 h-4" />
           </a>
         )}
       </div>
 
+      {/* Middle: Today/Later badge */}
       <div className="col-span-3 sm:col-span-2">
         <Badge variant="outline" className={isToday ? "border-emerald-300 text-emerald-700" : ""}>
           {isToday ? "Today" : "Later"}
         </Badge>
       </div>
 
+      {/* Actions: done / note / link */}
       <div className="col-span-3 sm:col-span-3 flex items-center gap-2">
-        <Button variant={isDoneToday ? "secondary" : "default"} size="sm" onClick={() => onCheckDone(!isDoneToday)}>
+        <Button
+          variant={isDoneToday ? "secondary" : "default"}
+          size="sm"
+          onClick={() => onCheckDone(!isDoneToday)}
+        >
           <CheckCircle2 className="w-4 h-4 mr-1" /> {isDoneToday ? "Done" : "Mark Done"}
         </Button>
+
         <NoteEditor
           item={item}
           onSave={(val) => onSaveNote(val)}
           trigger={<Button variant="outline" size="icon"><StickyNote className="w-4 h-4" /></Button>}
         />
+
         <LinkEditor
           item={item}
           onSave={(val) => onSaveLink(val)}
@@ -226,6 +262,7 @@ function ItemRow({ item, isToday, onToggleToday, onCheckDone, onDelete, onSaveNo
         />
       </div>
 
+      {/* Delete */}
       <div className="col-span-0 sm:col-span-2 flex justify-end">
         <Button variant="ghost" size="icon" onClick={onDelete}>
           <Trash2 className="w-4 h-4 text-slate-400 group-hover:text-rose-500" />
@@ -234,6 +271,7 @@ function ItemRow({ item, isToday, onToggleToday, onCheckDone, onDelete, onSaveNo
     </div>
   );
 }
+
 
 // ---------- Section Card ----------
 function SectionCard({ section, todayFlags, onToggleToday, onAddItem, onUpdateItem, onDeleteItem, collapsed, onToggleCollapse }) {
@@ -428,6 +466,7 @@ export default function App() {
       room: "",
       startsAt: start,
       endsAt: end,
+      title: "New item",   // <-- seed with a visible title
       note: "",
       link: "",
     });
@@ -637,22 +676,28 @@ export default function App() {
                     collapsed={Boolean(collapsed[s.id])}
                     onToggleCollapse={() => toggleCollapse(s.id)}
                     onToggleToday={(itemId, v) => toggleToday(itemId, v)}
-                    onAddItem={async (title) => {
-                      // quick default add under this course/section
-                      const now = new Date();
-                      const start = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
-                      const endD = new Date(now.getTime() + 50*60000);
-                      const end = `${String(endD.getHours()).padStart(2,"0")}:${String(endD.getMinutes()).padStart(2,"0")}`;
+                    onAddItem={async (typedTitle) => {
+                    const now = new Date();
+                    const start = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+                    const endD = new Date(now.getTime() + 50 * 60000);
+                    const end = `${String(endD.getHours()).padStart(2, "0")}:${String(endD.getMinutes()).padStart(2, "0")}`;
+
+                    try {
                       await addItem({
                         period: 0,
-                        course: s.title,
+                        course: s.title,     // section title = course
                         room: "",
                         startsAt: start,
                         endsAt: end,
+                        title: typedTitle,   // <-- CRITICAL: save what you typed
                         note: "",
                         link: "",
                       });
-                    }}
+                    } catch (e) {
+                      console.error("Add item failed", e);
+                      alert("Could not add item. Check console for details.");
+                    }
+                  }}
                     onUpdateItem={async (it, wantDoneOrNull, patch = {}) => {
                       // if wantDoneOrNull !== null, toggle doneDates for today
                       if (wantDoneOrNull !== null) {
