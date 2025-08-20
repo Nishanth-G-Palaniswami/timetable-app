@@ -1,11 +1,16 @@
 // src/App.jsx
 import { useEffect, useState } from "react";
 import { transformTimetable } from "./transform";
-import { fetchTimetable, addPeriod, deletePeriod } from "./api";
+import {
+  fetchTimetable,
+  addTimetableEntry,
+  deleteTimetableEntry,
+} from "./api"; // <-- we'll wire these
 import "./index.css";
 
 const USER_ID = "nishanth";
-const TODAY = "2025-08-21"; // for now hardcoded, later dynamic
+const getToday = () => new Date().toISOString().slice(0, 10);
+const TODAY = getToday();
 
 export default function App() {
   const [data, setData] = useState(null);
@@ -37,14 +42,14 @@ export default function App() {
       startsAt: "13:00",
       endsAt: "13:50",
     };
-    await addPeriod(payload);
+    await addTimetableEntry(payload);
     // re-fetch
     const rows = await fetchTimetable(USER_ID, TODAY);
     setData(transformTimetable(rows));
   }
 
-  async function handleDelete(sk) {
-    await deletePeriod(USER_ID, sk);
+  async function handleDelete(item) {
+    await deleteTimetableEntry(USER_ID, item.sk);
     // re-fetch
     const rows = await fetchTimetable(USER_ID, TODAY);
     setData(transformTimetable(rows));
@@ -67,7 +72,7 @@ export default function App() {
               >
                 <span>{item.title}</span>
                 <button
-                  onClick={() => handleDelete(item.sk)}
+                  onClick={() => handleDelete(item)}
                   className="text-red-600 hover:underline"
                 >
                   Delete
