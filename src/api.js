@@ -1,28 +1,42 @@
 // src/api.js
-const BASE = "https://api.nishanthgp.me/timetable";
+const BASE = import.meta.env.VITE_API_BASE ?? "https://api.nishanthgp.me/timetable";
 
-export async function fetchTimetable(userId, date) {
-  const res = await fetch(`${BASE}?userId=${userId}&date=${date}`);
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-  return res.json();
+async function j(req) {
+  const res = await req;
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.status === 204 ? null : res.json();
 }
 
-export async function addTimetableEntry(entry) {
-  const res = await fetch(BASE, {
+// GET /timetable?userId=&date=
+export function fetchTimetable(userId, date) {
+  const url = new URL(BASE);
+  url.searchParams.set("userId", userId);
+  url.searchParams.set("date", date);
+  return j(fetch(url.toString(), { method: "GET" }));
+}
+
+// POST /timetable
+export function addTimetableEntry(entry) {
+  return j(fetch(BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(entry),
-  });
-  if (!res.ok) throw new Error(`Add failed: ${res.status}`);
-  return res.json();
+  }));
 }
 
-export async function deleteTimetableEntry(userId, sk) {
-  const res = await fetch(`${BASE}/${encodeURIComponent(sk)}?userId=${userId}`, {
-    method: "DELETE",
-  });
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`Delete failed: ${res.status}`);
-  }
-  return true;
+// PATCH /timetable/{sk}
+export function updateTimetableEntry(userId, sk, patch) {
+  const url = `${BASE}/${encodeURIComponent(sk)}`;
+  return j(fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, ...patch }),
+  }));
+}
+
+// DELETE /timetable/{sk}?userId=
+export function deleteTimetableEntry(userId, sk) {
+  const url = new URL(`${BASE}/${encodeURIComponent(sk)}`);
+  url.searchParams.set("userId", userId);
+  return j(fetch(url.toString(), { method: "DELETE" })).then(() => true);
 }

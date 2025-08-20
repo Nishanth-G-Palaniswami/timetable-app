@@ -1,31 +1,59 @@
 // src/transform.js
-import { v4 as uuid } from "uuid";
+// Map Dynamo rows <-> rich UI sections/items
 
-export function transformTimetable(apiRows) {
-  // Group by course → section
-  const sectionMap = new Map();
+export function rowsToUI(rows = []) {
+  const byCourse = new Map();
 
-  for (const row of apiRows) {
-    const secTitle = row.course || "Untitled";
-    if (!sectionMap.has(secTitle)) {
-      sectionMap.set(secTitle, { id: uuid(), title: secTitle, items: [] });
-    }
-    const section = sectionMap.get(secTitle);
-    section.items.push({
-      id: row.sk,                    // use DynamoDB SK as stable ID
-      title: `${row.startsAt}–${row.endsAt} (${row.room})`,
-      link: "",
-      note: "",
-      today: true,                   // default: show for today
-      doneDates: [],
-      sk: row.sk,                    // keep SK around for deletes
-    });
+  for (const r of rows) {
+    const key = r.course || "Untitled";
+    if (!byCourse.has(key)) byCourse.set(key, []);
+    byCourse.get(key).push(r);
   }
 
+  const sections = [...byCourse.entries()].map(([title, items]) => ({
+    id: title,
+    title,
+    items: items
+      .slice()
+      .sort((a, b) => (a.startsAt || "").localeCompare(b.startsAt || ""))
+      .map((r) => ({
+        id: r.sk,
+        sk: r.sk,
+        title: r.title || `${r.startsAt ?? "??"}–${r.endsAt ?? "??"} (${r.room ?? ""})`,
+        link: r.link || "",
+        note: r.note || "",
+        today: true,
+        doneDates: Array.isArray(r.doneDates) ? r.doneDates : [],
+        meta: {
+          time: `${r.startsAt ?? "?"}–${r.endsAt ?? "?"}`,
+          room: r.room || "",
+        },
+        raw: r,
+      })),
+  }));
+
+  return { sections };
+}
+
+export function uiNewToRow({ userId, date }, ui) {
   return {
-    sections: Array.from(sectionMap.values()),
-    streak: { count: 0, best: 0 },
-    history: [],
-    boards: [],
+    userId,
+    date,
+    period: Number(ui.period ?? 0),
+    course: ui.course,
+    room: ui.room ?? "",
+    startsAt: ui.startsAt,
+    endsAt: ui.endsAt,
+    note: ui.note ?? "",
+    link: ui.link ?? "",
+    doneDates: [],
   };
+}
+
+export function uiPatchToRowPatch(uiPatch = {}) {
+  const out = {};
+  if ("note" in uiPatch) out.note = uiPatch.note ?? "";
+  if ("link" in uiPatch) out.link = uiPatch.link ?? "";
+  if ("doneDates" in uiPatch) out.doneDates = uiPatch.doneDates ?? [];
+  return out;
 }
